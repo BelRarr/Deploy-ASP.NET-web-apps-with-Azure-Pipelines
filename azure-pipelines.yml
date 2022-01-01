@@ -69,3 +69,38 @@ stages:
           # create and configure an Azure App Service plan and an Azure web app
           az appservice plan create -g $RESOURCEGROUPNAME -n $SVCPLANNAME --sku FREE
           az webapp create -g $RESOURCEGROUPNAME -p $SVCPLANNAME -n $WEBAPPNAME
+      
+- stage: DeployASPNETapp
+  jobs:
+  - job: DeployASPNETapp
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+    - task: DownloadBuildArtifacts@1
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'drop'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+    - task: AzureRmWebAppDeployment@4
+      inputs:
+        ConnectionType: 'AzureRM'
+        azureSubscription: 'labAzureSubscription'
+        appType: 'webApp'
+        WebAppName: '$(WEBAPPNAME)'
+        packageForLinux: '$(System.DefaultWorkingDirectory)/**/*.zip'
+
+    - task: AzureAppServiceSettings@1
+      inputs:
+        azureSubscription: 'labAzureSubscription'
+        appName: '$(WEBAPPNAME)'
+        resourceGroupName: '$(RESOURCEGROUPNAME)'
+        connectionStrings: |
+          [
+            {
+              "name": "MyDbConnection",
+              "value": "Server=tcp:$(SQLSRVNAME).database.windows.net,1433;Initial Catalog=tododb;Persist Security Info=False;User ID=$(USERNAME);Password=$(PASSWORD);MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;",
+              "type": "SqlAzure",
+              "slotSetting": false
+            }
+          ]
