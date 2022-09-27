@@ -1,34 +1,67 @@
-# ASP.NET Core (.NET Framework)
-# Build and test ASP.NET Core projects targeting the full .NET Framework.
-# Add steps that publish symbols, save build artifacts, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
 
-trigger:
-- main
 
-pool:
-  vmImage: 'windows-latest'
+trigger: none
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
-  buildConfiguration: 'Release'
+  vmImageName: 'ubuntu-latest'
+  workDir: '$(System.DefaultWorkingDirectory)/IaC/runatcloud-website'
+  deploymentBicepFile: 'website.bicep'
+  deploymentArmFile: 'website.json'
+  deploymentRegion: 'canadacentral'
+  deploymentName: 'racwebsitedeployment'
 
-steps:
-- task: NuGetToolInstaller@1
 
-- task: NuGetCommand@2
-  inputs:
-    restoreSolution: '$(solution)'
+pool:
+  vmImage: $(vmImageName)
 
-- task: VSBuild@1
-  inputs:
-    solution: '$(solution)'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:DesktopBuildPackageLocation="$(build.artifactStagingDirectory)\WebApp.zip" /p:DeployIisAppPath="Default Web Site"'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
 
-- task: VSTest@2
-  inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+stages:
+- stage: WebsiteInfraDeployment
+  displayName: Déploiement de l''infrastructure du site web de run@cloud 
+
+  jobs:
+  - deployment: Deploy
+    displayName: Déployer l''infra via le code Bicep
+    environment: '$(environmentAzDo)'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            displayName: "Obtenir le code"
+
+          - task: Bash@3
+            displayName: Installer le compilateur de Bicep
+            inputs:
+              targetType: 'inline'
+              script: |
+                curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+                chmod +x bicep
+                ./bicep --help
+              workingDirectory: '$(workDir)'
+
+          - task: Bash@3
+            displayName: Compiler les modèles Bicep en modèles ARM template
+            inputs:
+              targetType: 'inline'
+              script: |
+                rm -f $(deploymentArmFile)
+                ./bicep build $(deploymentBicepFile)
+              workingDirectory: '$(workDir)'
+
+          - task: AzureCLI@2
+            displayName: Exécuter le template ARM
+            inputs:
+              azureSubscription: $(serviceConnectionName)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+              
+                az deployment sub create \
+                  --name $(deploymentName) \
+                  --location $(deploymentRegion) \
+                  --subscription $(targetSubscription) \
+                  --template-file $(deploymentArmFile) \
+                  --parameters $(deploymentParameterFile)      
+                  
+              workingDirectory: '$(workDir)'
