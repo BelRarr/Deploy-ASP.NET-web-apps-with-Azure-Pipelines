@@ -27,6 +27,9 @@ stages:
     - task: NuGetCommand@2
       inputs:
         restoreSolution: '$(solution)'
+
+ ################## BRANCHE V2 ################################
+        
     - task: ArchiveFiles@2
       inputs:
         rootFolderOrFile: '$(Build.BinariesDirectory)'
