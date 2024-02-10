@@ -9,6 +9,9 @@ ENV ASPNETCORE_URLS=http://+:5000
 #RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app
 #USER appuser
 
+# Set a default value for BUILDPLATFORM
+ARG BUILDPLATFORM=linux/amd64
+
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 ARG configuration=Release
 WORKDIR /src
