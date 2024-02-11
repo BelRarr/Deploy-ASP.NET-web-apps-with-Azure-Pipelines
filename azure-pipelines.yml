@@ -35,6 +35,9 @@ stages:
         archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
         replaceExistingArchive: true
 
+
+    ####  HELLO, GREAT LEARNING !!! ######
+
     - task: VSBuild@1
       inputs:
         solution: '$(solution)'
